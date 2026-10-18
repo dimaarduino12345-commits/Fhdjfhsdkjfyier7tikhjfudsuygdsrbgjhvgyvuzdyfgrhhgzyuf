@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>D Bank — личный кабинет</title>
+<style>
+:root{--bg:#f6f7fb;--surface:#fff;--text:#12141f;--muted:#5d6378;--accent:#5b4bff;--ok:#00a58e;--bad:#e5484d;--border:#e3e6f0;--hero:linear-gradient(135deg,#5b4bff,#8f5bff 60%,#00c2a8)}
+@media (prefers-color-scheme:dark){:root{--bg:#0d0f1a;--surface:#161929;--text:#f1f2f8;--muted:#9aa0b8;--border:#262a40}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;line-height:1.5;padding:env(safe-area-inset-top,0) 0 env(safe-area-inset-bottom,0)}
+.wrap{max-width:900px;margin:0 auto;padding:0 16px}
+.logo{font-weight:800;font-size:22px}.logo span{color:var(--accent)}
+.btn{background:var(--accent);color:#fff;border:0;border-radius:12px;padding:12px 20px;font-size:15px;font-weight:600;cursor:pointer}
+.btn.alt{background:transparent;color:var(--text);border:1px solid var(--border)}
+.btn:disabled{opacity:.5;cursor:default}
+input,select{width:100%;padding:12px;margin:6px 0 12px;border-radius:10px;border:1px solid var(--border);background:var(--bg);color:var(--text);font-size:16px}
+label{font-size:13px;color:var(--muted)}
+.box{background:var(--surface);border:1px solid var(--border);border-radius:18px;padding:22px;margin-bottom:16px}
+h2{margin:0 0 14px;font-size:22px}h3{margin:0 0 10px}
+.muted{color:var(--muted);font-size:14px}
+#auth{max-width:420px;margin:0 auto;padding:40px 16px}
+#auth .hero{background:var(--hero);color:#fff;border-radius:20px;padding:28px;margin-bottom:16px}
+#auth .hero h1{margin:6px 0 4px;font-size:28px}
+.tabs{display:flex;gap:8px;margin-bottom:14px}.tabs button{flex:1}
+.err{color:var(--bad);font-size:14px;min-height:20px;margin-bottom:8px}
+header{display:flex;justify-content:space-between;align-items:center;padding:16px 0}
+nav{display:flex;gap:8px;overflow-x:auto;margin-bottom:16px}
+nav button{white-space:nowrap}nav .on{background:var(--accent);color:#fff;border-color:var(--accent)}
+.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:14px;margin-bottom:16px}
+.cd{aspect-ratio:1.586;border-radius:18px;color:#fff;padding:16px;display:flex;flex-direction:column;justify-content:space-between;cursor:pointer;border:3px solid transparent}
+.cd.sel{border-color:var(--text)}
+.cd.v{background:linear-gradient(135deg,#4b5563,#8b95a5)}.cd.j{background:linear-gradient(135deg,#ffb020,#ff6b9a)}.cd.b{background:linear-gradient(135deg,#0b0b12,#2f2f45)}
+.cd .row{display:flex;justify-content:space-between;font-size:14px}.cd .n{font-size:18px;letter-spacing:2px}.cd .bal{font-size:20px;font-weight:700}
+.badge{font-size:11px;padding:2px 8px;border-radius:99px;background:rgba(255,255,255,.25)}
+.acts{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+.tx{display:flex;justify-content:space-between;padding:12px 0;border-bottom:1px solid var(--border)}
+.tx:last-child{border:0}.in{color:var(--ok);font-weight:600}.out{font-weight:600}
+.req{font-family:ui-monospace,monospace;background:var(--bg);border-radius:10px;padding:12px;margin-top:10px;font-size:14px}
+#ov{position:fixed;inset:0;background:rgba(0,0,0,.55);display:none;align-items:center;justify-content:center;padding:16px;z-index:9}
+#ov .m{background:var(--surface);border-radius:18px;padding:24px;max-width:380px;width:100%}
+#toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0));transform:translateX(-50%);background:var(--text);color:var(--bg);padding:12px 18px;border-radius:12px;display:none;z-index:10;max-width:90%}
+.radio{display:flex;gap:16px;margin-bottom:12px}.radio label{color:var(--text);font-size:15px}.radio input{width:auto;margin:0 6px 0 0}
+</style>
+</head>
+<body>
+
+<div id="auth">
+  <div class="hero"><div class="logo" style="color:#fff">D Bank</div><h1>Банк, который всегда под рукой</h1><div>Карты, переводы и личный кабинет</div></div>
+  <div class="box">
+    <div class="tabs"><button class="btn" id="tl" onclick="authTab('login')">Вход</button><button class="btn alt" id="tr" onclick="authTab('reg')">Регистрация</button></div>
+    <div id="fl">
+      <label>Email</label><input id="le" type="email" autocomplete="email">
+      <label>Пароль</label><input id="ls" type="password" autocomplete="current-password">
+      <div class="err" id="e1"></div><button class="btn" style="width:100%" onclick="login()">Войти</button>
+    </div>
+    <div id="fr" hidden>
+      <label>Имя и фамилия</label><input id="rn" autocomplete="name">
+      <label>Телефон</label><input id="rp" type="tel" placeholder="+7 999 123 45 67">
+      <label>Дата рождения</label><input id="rb" type="date">
+      <label>Email</label><input id="re" type="email">
+      <label>Пароль (от 6 символов)</label><input id="rs" type="password" autocomplete="new-password">
+      <div class="err" id="e2"></div><button class="btn" style="width:100%" onclick="register()">Создать аккаунт</button>
+    </div>
+  </div>
+</div>
+
+<div id="app" class="wrap" hidden>
+  <header><div class="logo"><span>D</span> Bank</div><div><span id="hn" class="muted"></span> <button class="btn alt" onclick="auth.signOut()">Выйти</button></div></header>
+  <nav id="nav"></nav>
+  <main id="content"></main>
+</div>
+
+<div id="ov"><div class="m" id="mb"></div></div>
+<div id="toast"></div>
+
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+<script>
+const SEARCH_SEC = 60; // таймер поиска курьера / пункта выдачи
+firebase.initializeApp({
+  apiKey: "AIzaSyCN_Cyu_YhbbHlzoJbGAer-Sw6pKkFbQ6Y",
+  authDomain: "dbank-9fdba.firebaseapp.com",
+  databaseURL: "https://dbank-9fdba-default-rtdb.firebaseio.com",
+  projectId: "dbank-9fdba",
+  storageBucket: "dbank-9fdba.firebasestorage.app",
+  messagingSenderId: "912576398811",
+  appId: "1:912576398811:web:185fc3eba20314494c13fe"
+});
+const auth = firebase.auth(), db = firebase.database();
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const money = c => (c / 100).toLocaleString('ru-RU', {minimumFractionDigits: 2, maximumFractionDigits: 2}) + ' ₽';
+const normPhone = p => { let d = String(p).replace(/\D/g, ''); if (d.length === 11 && d[0] === '8') d = '7' + d.slice(1); return d; };
+const maskPhone = d => '+' + d[0] + '*'.repeat(d.length - 2) + d.slice(-1);
+const ageOf = b => { const d = new Date(b), n = new Date(); let a = n.getFullYear() - d.getFullYear(); if (n < new Date(n.getFullYear(), d.getMonth(), d.getDate())) a--; return a; };
+const TYPES = {virtual: {name: 'Виртуальная', cls: 'v'}, junior: {name: 'Junior', cls: 'j'}, black: {name: 'Black', cls: 'b'}};
+const ERR = {'auth/email-already-in-use': 'Этот email уже зарегистрирован', 'auth/invalid-credential': 'Неверный email или пароль', 'auth/invalid-email': 'Некорректный email', 'auth/weak-password': 'Слишком простой пароль', 'auth/too-many-requests': 'Слишком много попыток, попробуйте позже', 'auth/operation-not-allowed': 'В Firebase не включён вход по Email/Password', 'PERMISSION_DENIED': 'Нет доступа (проверьте правила базы данных)'};
+let uid = null, data = {}, sel = null, view = 'cards', showReq = false, unsub = null, timer = null;
+
+function toast(m) { const t = $('toast'); t.textContent = m; t.style.display = 'block'; clearTimeout(toast.t); toast.t = setTimeout(() => t.style.display = 'none', 3200); }
+function modal(h) { $('mb').innerHTML = h; $('ov').style.display = 'flex'; }
+function closeM() { clearInterval(timer); $('ov').style.display = 'none'; }
+const errText = e => ERR[e.code] || ERR[e.message] || e.message || 'Ошибка';
+
+/* ---------- авторизация ---------- */
+function authTab(t) {
+  $('fl').hidden = t !== 'login'; $('fr').hidden = t !== 'reg';
+  $('tl').className = 'btn' + (t === 'login' ? '' : ' alt'); $('tr').className = 'btn' + (t === 'reg' ? '' : ' alt');
+}
+async function login() {
+  $('e1').textContent = '';
+  try { await auth.signInWithEmailAndPassword($('le').value.trim(), $('ls').value); } catch (e) { $('e1').textContent = errText(e); }
+}
+async function register() {
+  $('e2').textContent = '';
+  const name = $('rn').value.trim(), phone = normPhone($('rp').value), birth = $('rb').value, email = $('re').value.trim(), pass = $('rs').value;
+  if (!name || phone.length !== 11 || !birth || !email || pass.length < 6) return $('e2').textContent = 'Заполните все поля: телефон — 11 цифр, пароль — от 6 символов';
+  if (new Date(birth) > new Date()) return $('e2').textContent = 'Дата рождения в будущем';
+  try {
+    const c = await auth.createUserWithEmailAndPassword(email, pass);
+    await db.ref('users/' + c.user.uid + '/profile').set({name, phone, birth, email});
+  } catch (e) { $('e2').textContent = errText(e); }
+}
+auth.onAuthStateChanged(u => {
+  if (unsub) { unsub(); unsub = null; }
+  if (!u) { uid = null; data = {}; $('app').hidden = true; $('auth').hidden = false; return; }
+  uid = u.uid; $('auth').hidden = true; $('app').hidden = false;
+  const ref = db.ref('users/' + uid);
+  const cb = ref.on('value', s => { data = s.val() || {}; render(); }, e => toast(errText(e)));
+  unsub = () => ref.off('value', cb);
+});
+
+/* ---------- отрисовка ---------- */
+function setView(v) { view = v; render(); }
+function render() {
+  const p = data.profile;
+  if (!p) { $('content').innerHTML = '<div class="box muted">Загрузка…</div>'; return; }
+  $('hn').textContent = p.name;
+  $('nav').innerHTML = [['cards', 'Карты'], ['transfer', 'Переводы'], ['history', 'История'], ['profile', 'Профиль']]
+    .map(([k, n]) => `<button class="btn alt ${view === k ? 'on' : ''}" onclick="setView('${k}')">${n}</button>`).join('');
+  $('content').innerHTML = {cards: vCards, transfer: vTransfer, history: vHistory, profile: vProfile}[view]();
+}
+const cardList = () => Object.entries(data.cards || {}).sort((a, b) => a[1].created - b[1].created);
+
+function vCards() {
+  const cs = cardList(), age = ageOf(data.profile.birth);
+  if (!sel || !(data.cards || {})[sel]) sel = cs[0] ? cs[0][0] : null;
+  const grid = cs.map(([id, c]) => `<div class="cd ${TYPES[c.type].cls} ${id === sel ? 'sel' : ''}" onclick="sel='${id}';showReq=false;render()">
+    <div class="row"><b>D Bank</b><span class="badge">${c.bound ? TYPES[c.type].name + (c.physical ? ' · физ.' : '') : 'не привязана'}</span></div>
+    <div class="n">•••• ${esc(c.number.slice(-4))}</div><div class="bal">${money(c.balance || 0)}</div></div>`).join('');
+  let panel = '';
+  if (sel) {
+    const c = data.cards[sel];
+    panel = `<div class="box"><h3>${TYPES[c.type].name} •••• ${esc(c.number.slice(-4))}</h3><div class="muted">Баланс</div><div style="font-size:28px;font-weight:700">${money(c.balance || 0)}</div>
+    <div class="acts">${c.bound
+      ? `<button class="btn" onclick="topUpM('${sel}')">Пополнить</button><button class="btn alt" onclick="showReq=!showReq;render()">${showReq ? 'Скрыть' : 'Показать'} реквизиты</button><button class="btn alt" onclick="setView('transfer')">Перевести</button>`
+      : `<button class="btn" onclick="askBind('${sel}')">Привязать к номеру</button>`}</div>
+    ${!c.bound ? '<p class="muted">Привяжите карту к номеру — заработают переводы, пополнения и просмотр реквизитов.</p>' : ''}
+    ${c.bound && showReq ? `<div class="req">Номер: ${esc(c.number.replace(/(.{4})/g, '$1 ').trim())}<br>Срок: ${esc(c.exp)} · CVV: ${esc(c.cvv)}<br>Телефон: ${esc(maskPhone(data.profile.phone))}</div>` : ''}</div>`;
+  }
+  return `<h2>Мои карты</h2>${cs.length ? `<div class="cards">${grid}</div>` : '<div class="box muted">У вас пока нет карт. Выпустите первую!</div>'}${panel}
+  <div class="box"><h3>Выпустить карту</h3><div class="acts">
+    <button class="btn" onclick="issue('virtual')">Виртуальная</button>
+    ${age < 14 ? '<button class="btn alt" onclick="orderPhysical(\'junior\')">Junior (физическая)</button>' : ''}
+    ${age >= 18 ? '<button class="btn alt" onclick="orderPhysical(\'black\')">Black (физическая)</button>' : ''}</div>
+    <p class="muted">Виртуальная доступна всегда. Junior — для детей до 14 лет, Black — для клиентов 18+.</p></div>`;
+}
+function vTransfer() {
+  const bound = cardList().filter(([, c]) => c.bound);
+  if (!bound.length) return '<div class="box"><h2>Переводы</h2><p class="muted">Нужна карта, привязанная к номеру телефона.</p></div>';
+  return `<div class="box"><h2>Перевод</h2>
+  <label>С карты</label><select id="tf">${bound.map(([id, c]) => `<option value="${id}" ${id === sel ? 'selected' : ''}>${TYPES[c.type].name} •••• ${esc(c.number.slice(-4))} — ${money(c.balance || 0)}</option>`).join('')}</select>
+  <div class="radio"><label><input type="radio" name="tm" value="card" checked onchange="$('tt').placeholder='Номер карты'">По номеру карты</label><label><input type="radio" name="tm" value="phone" onchange="$('tt').placeholder='+7 999 123 45 67'">По номеру телефона</label></div>
+  <label>Получатель</label><input id="tt" placeholder="Номер карты" inputmode="numeric">
+  <label>Сумма, ₽</label><input id="ta" inputmode="decimal" placeholder="0.00">
+  <button class="btn" onclick="doTransfer()">Перевести</button></div>`;
+}
+function vHistory() {
+  const t = Object.values(data.tx || {}).sort((a, b) => b.ts - a.ts);
+  return `<div class="box"><h2>История операций</h2>${t.length ? t.map(x => `<div class="tx"><div>${esc(x.text)}<div class="muted">${new Date(x.ts).toLocaleString('ru-RU')}</div></div><div class="${x.amount > 0 ? 'in' : 'out'}">${x.amount > 0 ? '+' : ''}${money(x.amount)}</div></div>`).join('') : '<p class="muted">Операций пока нет.</p>'}</div>`;
+}
+function vProfile() {
+  const p = data.profile;
+  return `<div class="box"><h2>Профиль</h2><p><b>${esc(p.name)}</b></p><p class="muted">Email: ${esc(p.email)}<br>Телефон: ${esc(maskPhone(p.phone))}<br>Дата рождения: ${esc(p.birth)} (${ageOf(p.birth)} лет)</p><p class="muted">Деньги в D Bank — внутренняя валюта без реальной стоимости.</p></div>`;
+}
+
+/* ---------- карты ---------- */
+const rnd = n => Array.from({length: n}, () => Math.floor(Math.random() * 10)).join('');
+async function createCard(type, physical) {
+  const age = ageOf(data.profile.birth);
+  if (type === 'junior' && age >= 14) throw new Error('Junior — только для детей до 14 лет');
+  if (type === 'black' && age < 18) throw new Error('Black — только для клиентов 18+');
+  if (cardList().length >= 10) throw new Error('Достигнут лимит в 10 карт');
+  const id = db.ref().push().key, y = new Date().getFullYear() + 4;
+  await db.ref(`users/${uid}/cards/${id}`).set({type, physical, number: '5100' + rnd(12), exp: String(new Date().getMonth() + 1).padStart(2, '0') + '/' + String(y).slice(2), cvv: rnd(3), balance: 0, bound: false, created: Date.now()});
+  sel = id; view = 'cards'; return id;
+}
+async function issue(type) { try { askBind(await createCard(type, false)); } catch (e) { toast(errText(e)); } }
+function askBind(id) {
+  modal(`<h3>Привяжите карту к номеру</h3><p class="muted">Привяжите карту к номеру, и у вас заработают переводы, пополнения и просмотр реквизитов.</p>
+  <div class="acts"><button class="btn" onclick="bind('${id}')">Привязать</button><button class="btn alt" onclick="closeM()">Позже</button></div>`);
+}
+async function bind(id) {
+  try {
+    const c = data.cards[id], ph = data.profile.phone;
+    await db.ref('cardIndex/' + c.number).set({uid, id});
+    await db.ref(`users/${uid}/cards/${id}/bound`).set(true);
+    await db.ref('phones/' + ph).transaction(v => v || {uid, card: c.number});
+    modal(`<h3>Готово</h3><p>Ваша карта привязана к номеру телефона ${esc(maskPhone(ph))}</p><button class="btn" onclick="closeM()">Открыть панель карты</button>`);
+  } catch (e) { toast(errText(e)); closeM(); }
+}
+let pend = null;
+function orderPhysical(type) {
+  pend = type;
+  modal(`<h3>Где вы хотели бы забрать карту?</h3><div class="acts"><button class="btn" onclick="search('courier')">Курьером</button><button class="btn alt" onclick="search('point')">В пункте выдачи карт</button></div>`);
+}
+function search(kind) {
+  let left = SEARCH_SEC; const label = kind === 'courier' ? 'курьера' : 'пункт выдачи';
+  const draw = () => modal(`<h3>Ищем ${label}…</h3><p class="muted">Осталось ${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')}</p><button class="btn alt" onclick="closeM()">Отмена</button>`);
+  draw();
+  timer = setInterval(async () => {
+    if (--left > 0) return draw();
+    clearInterval(timer);
+    if (Math.random() < 0.5) {
+      try { const id = await createCard(pend, true); modal(`<h3>${kind === 'courier' ? 'Курьер найден' : 'Пункт выдачи найден'}</h3><p class="muted">Карта оформлена. Привяжите её к номеру.</p><button class="btn" onclick="askBind('${id}')">Далее</button>`); }
+      catch (e) { toast(errText(e)); closeM(); }
+    } else if (kind === 'courier') {
+      modal(`<h3>Курьер не найден</h3><p>Заберёте карты в пункте выдачи карт?</p><div class="acts"><button class="btn" onclick="search('point')">Да</button><button class="btn alt" onclick="closeM();toast('Заказ отменён')">Нет</button></div>`);
+    } else modal(`<h3>Не нашли пунктов</h3><button class="btn" onclick="closeM()">Закрыть</button>`);
+  }, 1000);
+}
+
+/* ---------- деньги ---------- */
+function topUpM(id) {
+  modal(`<h3>Пополнение</h3><label>Сумма, ₽</label><input id="tu" inputmode="decimal" placeholder="1000"><div class="acts"><button class="btn" onclick="topUp('${id}')">Пополнить</button><button class="btn alt" onclick="closeM()">Отмена</button></div>`);
+}
+async function topUp(id) {
+  const a = Math.round(parseFloat($('tu').value.replace(',', '.')) * 100);
+  if (!(a > 0) || a > 10000000) return toast('Введите сумму от 0.01 до 100 000 ₽');
+  try {
+    await db.ref(`users/${uid}/cards/${id}/balance`).transaction(b => (b || 0) + a);
+    await db.ref(`users/${uid}/tx`).push({ts: Date.now(), amount: a, text: 'Пополнение карты •••• ' + data.cards[id].number.slice(-4)});
+    closeM(); toast('Карта пополнена');
+  } catch (e) { toast(errText(e)); }
+}
+async function doTransfer() {
+  const from = $('tf').value, mode = document.querySelector('input[name=tm]:checked').value, to = $('tt').value.trim();
+  const a = Math.round(parseFloat($('ta').value.replace(',', '.')) * 100);
+  if (!(a > 0) || a > 100000000) return toast('Введите корректную сумму');
+  try {
+    let num;
+    if (mode === 'card') num = to.replace(/\D/g, '');
+    else { const ph = await db.ref('phones/' + normPhone(to)).get(); if (!ph.exists()) throw new Error('Получатель с таким телефоном не найден'); num = ph.val().card; }
+    const ci = await db.ref('cardIndex/' + num).get();
+    if (!ci.exists()) throw new Error('Карта получателя не найдена');
+    const {uid: ru, id: rid} = ci.val();
+    if (ru === uid && rid === from) throw new Error('Нельзя перевести на ту же карту');
+    const r = await db.ref(`users/${uid}/cards/${from}/balance`).transaction(b => (b || 0) >= a ? b - a : undefined);
+    if (!r.committed) throw new Error('Недостаточно средств');
+    try { await db.ref(`users/${ru}/cards/${rid}/balance`).transaction(b => (b || 0) + a); }
+    catch (e) { await db.ref(`users/${uid}/cards/${from}/balance`).transaction(b => (b || 0) + a); throw e; }
+    const ts = Date.now();
+    await db.ref(`users/${uid}/tx`).push({ts, amount: -a, text: 'Перевод на карту •••• ' + num.slice(-4)});
+    await db.ref(`users/${ru}/tx`).push({ts, amount: a, text: ru === uid ? 'Перевод с карты •••• ' + data.cards[from].number.slice(-4) : 'Перевод от ' + data.profile.name});
+    toast('Перевод выполнен');
+  } catch (e) { toast(errText(e)); }
+}
+</script>
+</body>
+</html>
