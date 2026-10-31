@@ -4,6 +4,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>D Bank — личный кабинет</title>
+<!-- Подключаем MQTT для DMI ID -->
+<script src="https://unpkg.com/mqtt@4.3.7/dist/mqtt.min.js"></script>
+
 <style>
 :root{--bg:#f6f7fb;--surface:#fff;--text:#12141f;--muted:#5d6378;--accent:#5b4bff;--ok:#00a58e;--bad:#e5484d;--border:#e3e6f0;--hero:linear-gradient(135deg,#5b4bff,#8f5bff 60%,#00c2a8)}
 @media (prefers-color-scheme:dark){:root{--bg:#0d0f1a;--surface:#161929;--text:#f1f2f8;--muted:#9aa0b8;--border:#262a40}}
@@ -41,6 +44,13 @@ nav button{white-space:nowrap}nav .on{background:var(--accent);color:#fff;border
 #ov .m{background:var(--surface);border-radius:18px;padding:24px;max-width:380px;width:100%}
 #toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0));transform:translateX(-50%);background:var(--text);color:var(--bg);padding:12px 18px;border-radius:12px;display:none;z-index:10;max-width:90%}
 .radio{display:flex;gap:16px;margin-bottom:12px}.radio label{color:var(--text);font-size:15px}.radio input{width:auto;margin:0 6px 0 0}
+
+/* Стили для DMI ID */
+.divider{display:flex;align-items:center;text-align:center;margin:20px 0;color:var(--muted);font-size:13px;font-weight:600}
+.divider::before,.divider::after{content:'';flex:1;border-bottom:1px solid var(--border)}
+.divider span{padding:0 10px}
+#dmi-box{text-align:center;padding:10px 0}
+.dmi-link{word-break:break-all;font-size:13px;color:var(--accent);background:var(--bg);padding:10px;border-radius:8px;margin-bottom:10px;display:block;text-decoration:none;font-family:monospace}
 </style>
 </head>
 <body>
@@ -48,12 +58,17 @@ nav button{white-space:nowrap}nav .on{background:var(--accent);color:#fff;border
 <div id="auth">
   <div class="hero"><div class="logo" style="color:#fff">D Bank</div><h1>Банк, который всегда под рукой</h1><div>Карты, переводы и личный кабинет</div></div>
   <div class="box">
-    <div class="tabs"><button class="btn" id="tl" onclick="authTab('login')">Вход</button><button class="btn alt" id="tr" onclick="authTab('reg')">Регистрация</button></div>
+    <div class="tabs" id="auth-tabs">
+        <button class="btn" id="tl" onclick="authTab('login')">Вход</button>
+        <button class="btn alt" id="tr" onclick="authTab('reg')">Регистрация</button>
+    </div>
+    
     <div id="fl">
       <label>Email</label><input id="le" type="email" autocomplete="email">
       <label>Пароль</label><input id="ls" type="password" autocomplete="current-password">
       <div class="err" id="e1"></div><button class="btn" style="width:100%" onclick="login()">Войти</button>
     </div>
+    
     <div id="fr" hidden>
       <label>Имя и фамилия</label><input id="rn" autocomplete="name">
       <label>Телефон</label><input id="rp" type="tel" placeholder="+7 999 123 45 67">
@@ -61,6 +76,19 @@ nav button{white-space:nowrap}nav .on{background:var(--accent);color:#fff;border
       <label>Email</label><input id="re" type="email">
       <label>Пароль (от 6 символов)</label><input id="rs" type="password" autocomplete="new-password">
       <div class="err" id="e2"></div><button class="btn" style="width:100%" onclick="register()">Создать аккаунт</button>
+    </div>
+
+    <!-- Блок DMI ID -->
+    <div id="dmi-section">
+        <div class="divider"><span>или</span></div>
+        <button class="btn alt" id="btn-login-dmi" style="width:100%" onclick="loginDMI()">Войти через DMI ID</button>
+        
+        <div id="dmi-box" hidden>
+            <p class="muted" style="margin-bottom:10px;">Откройте ссылку на телефоне и подтвердите вход:</p>
+            <a class="dmi-link" id="dmi-link" href="#" target="_blank"></a>
+            <button class="btn" style="width:100%;margin-bottom:10px;" onclick="document.getElementById('dmi-link').click()">Перейти</button>
+            <div class="muted" style="font-size:12px;">Ожидание подтверждения...</div>
+        </div>
     </div>
   </div>
 </div>
@@ -78,7 +106,7 @@ nav button{white-space:nowrap}nav .on{background:var(--accent);color:#fff;border
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
 <script>
-const SEARCH_SEC = 60; // таймер поиска курьера / пункта выдачи
+const SEARCH_SEC = 60; 
 firebase.initializeApp({
   apiKey: "AIzaSyCN_Cyu_YhbbHlzoJbGAer-Sw6pKkFbQ6Y",
   authDomain: "dbank-9fdba.firebaseapp.com",
@@ -104,7 +132,79 @@ function modal(h) { $('mb').innerHTML = h; $('ov').style.display = 'flex'; }
 function closeM() { clearInterval(timer); $('ov').style.display = 'none'; }
 const errText = e => ERR[e.code] || ERR[e.message] || e.message || 'Ошибка';
 
-/* ---------- авторизация ---------- */
+/* DMI ID ЛОГИКА */
+let dmiClient = null;
+
+function loginDMI() {
+    $('auth-tabs').style.display = 'none';
+    $('fl').hidden = true;
+    $('fr').hidden = true;
+    $('btn-login-dmi').style.display = 'none';
+    $('dmi-box').hidden = false;
+
+    const sessionId = Math.random().toString(36).substring(2, 10).toUpperCase();
+    
+    // ИСПОЛЬЗУЕМ HTTPS И AppInfo=DMI
+    const link = `https://pasport-dmi.cc.cd/auth.html?session=${sessionId}&app=${encodeURIComponent('D Bank')}&AppInfo=DMI`;
+    
+    $('dmi-link').href = link;
+    $('dmi-link').textContent = link;
+
+    if (dmiClient) dmiClient.end();
+    dmiClient = mqtt.connect('wss://broker.emqx.io:8084/mqtt');
+
+    dmiClient.on('connect', () => dmiClient.subscribe(`dmi/auth/session/${sessionId}`));
+
+    dmiClient.on('message', async (topic, message) => {
+        try {
+            const payload = JSON.parse(message.toString());
+            if (payload.status === 'success') {
+                dmiClient.end();
+                await handleDMILogin(payload.phone, payload.name);
+            }
+        } catch (e) {}
+    });
+}
+
+async function handleDMILogin(phone, name) {
+    const email = `${phone}@dmi.dbank`;
+    const pass = `dmi_${phone}_secure`;
+
+    try {
+        let userCredential;
+        try {
+            userCredential = await auth.signInWithEmailAndPassword(email, pass);
+        } catch (e) {
+            if (e.code === 'auth/user-not-found' || e.code === 'auth/invalid-credential') {
+                userCredential = await auth.createUserWithEmailAndPassword(email, pass);
+            } else throw e;
+        }
+
+        const user = userCredential.user;
+        const profileRef = db.ref('users/' + user.uid + '/profile');
+        const snapshot = await profileRef.get();
+
+        if (!snapshot.exists()) {
+            await profileRef.set({
+                name: name || 'DMI User',
+                phone: phone,
+                birth: '1995-01-01',
+                email: email
+            });
+        }
+        closeM(); resetAuthUI(); toast('Успешный вход через DMI ID');
+    } catch (e) { toast('Ошибка DMI: ' + e.message); }
+}
+
+function resetAuthUI() {
+    $('auth-tabs').style.display = 'flex';
+    $('fl').hidden = false;
+    $('btn-login-dmi').style.display = 'block';
+    $('dmi-box').hidden = true;
+    authTab('login');
+}
+
+/* СТАНДАРТНАЯ АВТОРИЗАЦИЯ */
 function authTab(t) {
   $('fl').hidden = t !== 'login'; $('fr').hidden = t !== 'reg';
   $('tl').className = 'btn' + (t === 'login' ? '' : ' alt'); $('tr').className = 'btn' + (t === 'reg' ? '' : ' alt');
@@ -123,16 +223,21 @@ async function register() {
     await db.ref('users/' + c.user.uid + '/profile').set({name, phone, birth, email});
   } catch (e) { $('e2').textContent = errText(e); }
 }
+
 auth.onAuthStateChanged(u => {
   if (unsub) { unsub(); unsub = null; }
-  if (!u) { uid = null; data = {}; $('app').hidden = true; $('auth').hidden = false; return; }
+  if (!u) { 
+      uid = null; data = {}; $('app').hidden = true; $('auth').hidden = false; 
+      resetAuthUI();
+      return; 
+  }
   uid = u.uid; $('auth').hidden = true; $('app').hidden = false;
   const ref = db.ref('users/' + uid);
   const cb = ref.on('value', s => { data = s.val() || {}; render(); }, e => toast(errText(e)));
   unsub = () => ref.off('value', cb);
 });
 
-/* ---------- отрисовка ---------- */
+/* ОТРИСОВКА */
 function setView(v) { view = v; render(); }
 function render() {
   const p = data.profile;
@@ -186,7 +291,7 @@ function vProfile() {
   return `<div class="box"><h2>Профиль</h2><p><b>${esc(p.name)}</b></p><p class="muted">Email: ${esc(p.email)}<br>Телефон: ${esc(maskPhone(p.phone))}<br>Дата рождения: ${esc(p.birth)} (${ageOf(p.birth)} лет)</p><p class="muted">Деньги в D Bank — внутренняя валюта без реальной стоимости.</p></div>`;
 }
 
-/* ---------- карты ---------- */
+/* КАРТЫ */
 const rnd = n => Array.from({length: n}, () => Math.floor(Math.random() * 10)).join('');
 async function createCard(type, physical) {
   const age = ageOf(data.profile.birth);
@@ -232,7 +337,7 @@ function search(kind) {
   }, 1000);
 }
 
-/* ---------- деньги ---------- */
+/* ДЕНЬГИ */
 function topUpM(id) {
   modal(`<h3>Пополнение</h3><label>Сумма, ₽</label><input id="tu" inputmode="decimal" placeholder="1000"><div class="acts"><button class="btn" onclick="topUp('${id}')">Пополнить</button><button class="btn alt" onclick="closeM()">Отмена</button></div>`);
 }
